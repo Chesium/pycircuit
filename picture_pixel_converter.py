@@ -3,22 +3,22 @@ import os
 
 def generate_rom_data(image_path, output_file):
     try:
-        # 1. 讀取圖片
+        # 1. Load the image
         img = Image.open(image_path)
         
-        # 2. 解決透明背景問題！
-        # 如果圖片有透明通道 (RGBA)，先創建一張純白色的背景，把圖片貼上去
+        # 2. Handle transparent backgrounds
+        # If the image has an alpha channel (RGBA), paste it onto a pure white background first
         if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
             white_bg = Image.new("RGB", img.size, (255, 255, 255))
             white_bg.paste(img, mask=img.convert('RGBA').split()[3])
-            img = white_bg # 用處理好的白底圖片取代原本的圖片
+            img = white_bg # Replace the original image with the processed white-background version
             
-        # 3. 現在可以安全地轉成灰階了
+        # 3. Now it is safe to convert to grayscale
         img = img.convert('L')
         
     except Exception as e:
-        print(f"找不到圖片或無法開啟: {e}")
-        return
+        print(f"Image not found or could not be opened: {e}")
+        return 
 
     width, height = img.size
     
@@ -26,14 +26,14 @@ def generate_rom_data(image_path, output_file):
         f.write(f"// --- Processing: {os.path.basename(image_path)} ({width}x{height}) ---\n")
 
         if height != 32:
-            f.write("// ERROR: 圖片高度必須剛好是 32 像素。\n")
-            print("錯誤：圖片高度不是 32 像素。")
+            f.write("// ERROR: Image height must be exactly 32 pixels.\n")
+            print("Error: Image height is not 32 pixels.")
             return
 
         if width == 32:
             f.write("// --- 32x32 Image Data ---\n")
             extract_pixels(img, 0, 32, 32, f)
-            print(f"轉換成功！請打開 {output_file} 查看結果。")
+            print(f"Conversion successful! Open {output_file} to view the result.")
             
         elif width == 64:
             f.write("// --- 64x32 Image Data (Left Half) ---\n")
@@ -41,18 +41,19 @@ def generate_rom_data(image_path, output_file):
             
             f.write("\n// --- 64x32 Image Data (Right Half) ---\n")
             extract_pixels(img, 32, 64, 32, f)
-            print(f"轉換成功！請打開 {output_file} 查看結果。")
+            print(f"Conversion successful! Open {output_file} to view the result.")
             
         else:
-            f.write("// ERROR: 圖片寬度必須是 32 或 64 像素。\n")
-            print("錯誤：圖片寬度不是 32 或 64。")
+            f.write("// ERROR: Image width must be 32 or 64 pixels.\n")
+            print("Error: Image width is not 32 or 64 pixels.")
 
 def extract_pixels(img, start_x, end_x, height, file_handle):
     for y in range(height):
         row_binary = ""
         for x in range(start_x, end_x):
             pixel_value = img.getpixel((x, y))
-            # 門檻值：小於 128 視為黑色圖案 (1)，大於等於 128 視為白色背景 (0)
+            # Threshold: values below 128 are treated as black pixels (1),
+            # and values of 128 or above are treated as white background (0)
             if pixel_value < 128:
                 row_binary += "1" 
             else:
@@ -60,15 +61,15 @@ def extract_pixels(img, start_x, end_x, height, file_handle):
         
         file_handle.write(f"32'b{row_binary},\n")
 
-# --- 執行區塊 ---
+# --- Execution block ---
 if __name__ == "__main__":
-    # 請替換成你實際的檔名，注意輸出路徑可以改成你的桌面！
+    # Replace these with your actual file names. You can also change the output path to your desktop.
     image_file = r"C:\Users\Wind_Hsu\Desktop\EE2026\EE2026_project_pictures\Wire.png" 
     output_text = r"C:\Users\Wind_Hsu\Desktop\EE2026\EE2026_project_pictures\Wire.txt"
     
     if os.path.exists(image_file):
         generate_rom_data(image_file, output_text)
     else:
-        print(f"找不到 '{image_file}'，請確認圖片和這個 python 檔放在同一個資料夾。")
+        print(f"Could not find '{image_file}'. Please make sure the image and this Python file are in the same folder.")
     
-    input("\n執行完畢。請按 Enter 鍵結束...")
+    input("\nExecution finished. Press Enter to exit...")
